@@ -8,24 +8,26 @@ from PyQt5.QtGui import QFont
 from models import PartyFinder
 from data import params, characters
 
+
 class PartyFinderApp(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Party Finder — For The King II")
         self.resize(1050, 700)
+        self.setFont(QFont("Arial", 12))
         self.party_finder = PartyFinder()
         self.initUI()
 
     def initUI(self):
         main_layout = QVBoxLayout()
-
         top_hbox = QHBoxLayout()
 
+        # ===== ФИЛЬТРЫ =====
         params_box = QGroupBox("Фильтры")
         params_box.setFont(QFont("Arial", weight=QFont.Bold))
         grid = QGridLayout()
 
-        grid.addWidget(self._bold_label("Общий минимум параметра:"), 0, 0)
+        grid.addWidget(self._bold_label("Общий минимум:"), 0, 0)
         self.min_value_edit = QSpinBox()
         self.min_value_edit.setRange(0, 150)
         self.min_value_edit.setFixedWidth(70)
@@ -35,7 +37,7 @@ class PartyFinderApp(QWidget):
         self.param_min_edits = {}
         row = 1
         for p in params:
-            grid.addWidget(self._bold_label(f"{p} ≥"), row, 0)
+            grid.addWidget(self._bold_label(f"{p}:"), row, 0)
             edit = QSpinBox()
             edit.setRange(0, 150)
             edit.setFixedWidth(70)
@@ -44,31 +46,53 @@ class PartyFinderApp(QWidget):
             grid.addWidget(edit, row, 1)
             row += 1
 
-        grid.addWidget(self._bold_label("Требование: не менее"), row, 0)
+        grid.addWidget(self._bold_label("Минимум персонажей:"), row, 0)
         self.req_param_count = QSpinBox()
         self.req_param_count.setRange(0, 4)
         self.req_param_count.setFixedWidth(70)
         self.req_param_count.setValue(0)
         grid.addWidget(self.req_param_count, row, 1)
 
-        grid.addWidget(self._bold_label("... с характеристикой"), row+1, 0)
+        grid.addWidget(self._bold_label("с характеристикой:"), row + 1, 0)
+        hbox = QHBoxLayout()
         self.req_param_name = QLineEdit()
         self.req_param_name.setPlaceholderText("например, Скорость")
-        self.req_param_name.setFixedWidth(110)
-        grid.addWidget(self.req_param_name, row+1, 1)
+        self.req_param_name.setFixedWidth(185)
+        hbox.addWidget(self.req_param_name)
 
-        grid.addWidget(self._bold_label("... ≥"), row+2, 0)
+        hbox.addSpacing(20)
         self.req_param_value = QSpinBox()
         self.req_param_value.setRange(0, 150)
         self.req_param_value.setFixedWidth(70)
-        grid.addWidget(self.req_param_value, row+2, 1)
+        hbox.addWidget(self.req_param_value)
+
+        grid.addLayout(hbox, row + 2, 0, 1, 2)
         row += 3
 
         params_box.setLayout(grid)
-        params_box.setFixedWidth(240)
+        params_box.setFixedWidth(300)
         top_hbox.addWidget(params_box, alignment=Qt.AlignTop)
 
-        class_group = QGroupBox("Фиксированные классы (всегда в пати)")
+        # ===== ТАБЛИЦА ХАРАКТЕРИСТИК =====
+        self.stats_table = QTableWidget()
+        self.stats_table.setColumnCount(len(params) + 1)
+        self.stats_table.setHorizontalHeaderLabels(["Класс"] + params)
+        self.stats_table.setRowCount(len(characters))
+
+        for row_index, ch in enumerate(characters):
+            self.stats_table.setItem(row_index, 0, QTableWidgetItem(ch["Класс"]))
+            for col_index, param in enumerate(params):
+                value = ch.get(param, "")
+                self.stats_table.setItem(row_index, col_index + 1, QTableWidgetItem(str(value)))
+
+        self.stats_table.setFixedWidth(420)
+        self.stats_table.setMaximumHeight(300)
+        self.stats_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.stats_table.resizeColumnsToContents()
+        top_hbox.addWidget(self.stats_table, alignment=Qt.AlignTop)
+
+        # ===== ЧЕКБОКСЫ КЛАССОВ =====
+        class_group = QGroupBox("Добавить в пати:")
         class_group.setFont(QFont("Arial", weight=QFont.Bold))
         layout_classes = QVBoxLayout()
         self.class_checkboxes = []
@@ -77,9 +101,10 @@ class PartyFinderApp(QWidget):
             self.class_checkboxes.append(cb)
             layout_classes.addWidget(cb)
         class_group.setLayout(layout_classes)
-        class_group.setFixedWidth(230)
+        class_group.setFixedWidth(200)
         top_hbox.addWidget(class_group, alignment=Qt.AlignTop)
 
+        # ===== КНОПКА + ТАБЛИЦА РЕЗУЛЬТАТОВ =====
         main_layout.addLayout(top_hbox)
 
         btn_find = QPushButton("Подобрать пати")
@@ -126,9 +151,7 @@ class PartyFinderApp(QWidget):
             )
             for ch in party:
                 self.table.insertRow(row_idx)
-                self.table.setItem(row_idx, 0, QTableWidgetItem(
-                    ", ".join(ch.klass for ch in party)
-                ))
+                self.table.setItem(row_idx, 0, QTableWidgetItem(", ".join(ch.klass for ch in party)))
                 self.table.setItem(row_idx, 1, QTableWidgetItem(ch.klass))
                 self.table.setItem(row_idx, 2, QTableWidgetItem(
                     ", ".join(class2params[ch.klass]) if class2params[ch.klass] else "-"
